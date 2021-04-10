@@ -1,0 +1,64 @@
+import telebot 
+
+storage = dict()
+
+bot = telebot.TeleBot("[INSERT TOKEN HERE]", parse_mode=None)
+
+
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, """Это бот счетовод. Он поможет тебе считать что-нибудь быстро и просто.
+Но сначала надо познакомиться. 
+Как тебя зовут?""")
+    bot.register_next_step_handler(message, process_name_step)
+    
+def process_name_step(message):
+    name = message.text
+    message = bot.reply_to(message, f'Рад знакомству, {name}. Введи /startnew, чтобы начать добавлять.')
+    
+@bot.message_handler(commands=['startnew'])
+def add(message):
+    bot.reply_to(message, "Новый счёт заведён. Введи начальную сумму")
+    bot.register_next_step_handler(message, add_to_count)
+
+def add_to_count(message):
+    chat_id = message.chat.id    
+    if message.text.isnumeric():
+        bot.reply_to(message, f'Успешно создано. Мы начинаем счет с {message.text}')
+        storage[chat_id] = int(message.text)
+    else:
+        bot.reply_to(message, 'Я не могу считать ничего, кроме цифр. Попробуй ещё раз')
+        bot.register_next_step_handler(message, add_to_count)
+
+    
+@bot.message_handler(commands=['help'])
+def help_(message):
+    bot.reply_to(message, """Я умею складывать и вычитать. 
+                 
+Для начала тебе надо ввести сумму, с которой мы будем работать.
+Если хочешь из неё вычесть, просто напиши это число боту. Вот так: '100'
+Если хочешь прибавить, то поставь плюс перед числом. Вот так: '+100'""")
+
+
+@bot.message_handler()
+def counter(message):
+    chat_id = message.chat.id 
+    current_state = storage[chat_id]    
+    if message.text[1:].isnumeric() and message.text.startswith('+'):
+        storage[chat_id] = int(current_state) + int(message.text[1:])
+        bot.reply_to(message, f'Было {current_state}, прибавили {message.text}. \
+Стало {storage[chat_id]}')   
+
+    elif message.text.isnumeric():
+        storage[chat_id] = int(current_state) - int(message.text)
+        bot.reply_to(message, f'Было {current_state}, вычли {message.text}. \
+Стало {storage[chat_id]}')  
+    elif message.text.isnumeric() and chat_id not in storage:
+        bot.reply_to(message, 'Счет ещё не заведён! Введи /start , чтобы начать.')
+
+    else:
+        bot.reply_to(message, 'Либо я не понял, либо ты. Введи /help , чтобы понять в чём тут дело.')         
+        
+
+    
+bot.polling()
